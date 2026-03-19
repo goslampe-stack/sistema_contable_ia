@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConciliaBot — Conciliación Bancaria Inteligente</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    background: rgba(10,15,26,0.9);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head); font-weight: 800; font-size: 14px; color: #fff;
+  }
+  .logo-text { font-family: var(--font-head); font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+  .badge {
+    font-family: var(--font-mono); font-size: 11px;
+    background: rgba(0,212,255,0.1); color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.2);
+    padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;
+  }
+
+  /* Hero */
+  .hero { padding: 64px 0 48px; text-align: center; }
+  .hero h1 {
+    font-family: var(--font-head); font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800; line-height: 1.1; letter-spacing: -1.5px;
+    margin-bottom: 16px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 17px; max-width: 480px; margin: 0 auto 40px; line-height: 1.6; }
+
+  /* Upload zone */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+
+  .upload-card {
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+  .upload-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .upload-card.banco::before { background: radial-gradient(circle at 50% 0%, rgba(0,212,255,0.07), transparent 70%); }
+  .upload-card.contable::before { background: radial-gradient(circle at 50% 0%, rgba(124,58,237,0.07), transparent 70%); }
+  .upload-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .upload-card:hover::before { opacity: 1; }
+  .upload-card.loaded { border-style: solid; border-color: var(--ok); }
+  .upload-card.loaded::before { background: radial-gradient(circle at 50% 0%, rgba(16,185,129,0.07), transparent 70%); opacity: 1; }
+
+  .upload-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px; font-size: 22px;
+  }
+  .banco .upload-icon { background: rgba(0,212,255,0.1); }
+  .contable .upload-icon { background: rgba(124,58,237,0.1); }
+  .upload-card h3 { font-family: var(--font-head); font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .upload-card p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .upload-card .file-name {
+    margin-top: 12px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--ok); background: rgba(16,185,129,0.1);
+    padding: 4px 12px; border-radius: 6px; display: inline-block;
+  }
+  input[type=file] { display: none; }
+
+  /* Demo data button */
+  .demo-hint {
+    text-align: center; margin-bottom: 24px;
+    font-size: 13px; color: var(--muted);
+  }
+  .demo-hint button {
+    background: none; border: 1px solid var(--border);
+    color: var(--accent); cursor: pointer; padding: 6px 16px;
+    border-radius: 8px; font-family: var(--font-body); font-size: 13px;
+    margin-left: 8px; transition: all 0.15s;
+  }
+  .demo-hint button:hover { background: rgba(0,212,255,0.08); border-color: var(--accent); }
+
+  /* Run button */
+  .run-btn {
+    display: block; width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--accent), #0099cc);
+    color: #000; font-family: var(--font-head); font-weight: 700;
+    font-size: 16px; letter-spacing: 0.3px;
+    border: none; border-radius: 12px; cursor: pointer;
+    transition: all 0.2s; margin-bottom: 48px;
+  }
+  .run-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,212,255,0.3); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Results */
+  #results { display: none; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+  @media (max-width: 768px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 16px;
+  }
+  .stat-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-family: var(--font-mono); }
+  .stat-card .value { font-family: var(--font-head); font-size: 28px; font-weight: 800; line-height: 1; }
+  .stat-card.ok .value { color: var(--ok); }
+  .stat-card.warn .value { color: var(--warn); }
+  .stat-card.danger .value { color: var(--danger); }
+  .stat-card.total .value { color: var(--accent); }
+  .stat-card .sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 10px 20px; font-family: var(--font-body); font-size: 14px; font-weight: 500;
+    color: var(--muted); cursor: pointer; border: none; background: none;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 6px; font-size: 11px;
+    font-family: var(--font-mono); margin-left: 6px;
+  }
+  .tab.active .tab-count { background: rgba(0,212,255,0.15); color: var(--accent); }
+  .tab-count.warn-c { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .tab-count.danger-c { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--surface2); padding: 12px 16px;
+    text-align: left; font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px;
+    font-weight: 500; white-space: nowrap;
+  }
+  tbody tr { border-top: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 12px 16px; font-family: var(--font-body); }
+  td.mono { font-family: var(--font-mono); font-size: 12px; }
+  td.amount { font-family: var(--font-mono); font-size: 13px; font-weight: 500; text-align: right; }
+  td.amount.neg { color: var(--danger); }
+  td.amount.pos { color: var(--ok); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px;
+    font-family: var(--font-mono); font-weight: 500; white-space: nowrap;
+  }
+  .pill.ok { background: rgba(16,185,129,0.12); color: var(--ok); }
+  .pill.warn { background: rgba(245,158,11,0.12); color: var(--warn); }
+  .pill.danger { background: rgba(239,68,68,0.12); color: var(--danger); }
+  .pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* Export btn */
+  .actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+  .btn-outline {
+    padding: 10px 20px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); border-radius: 10px; font-family: var(--font-body); font-size: 13px;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 8px;
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
+  .empty .icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* Footer watermark */
+  .footer { text-align: center; padding: 40px 0 24px; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap header-inner">
+    <div class="logo">
+      <div class="logo-mark">CB</div>
+      <div class="logo-text">Concilia<span>Bot</span></div>
+    </div>
+    <div class="badge">DEMO v1.0</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Conciliación bancaria<br><em>en segundos</em></h1>
+    <p>Sube el extracto del banco y el reporte de tu sistema contable. El resultado aparece al instante.</p>
+  </div>
+
+  <div class="upload-grid">
+    <label class="upload-card banco" id="card-banco" for="file-banco">
+      <div class="upload-icon">🏦</div>
+      <h3>Extracto bancario</h3>
+      <p>Excel exportado del banco<br>(BCP, Scotiabank, Interbank, etc.)</p>
+      <div class="file-name" id="name-banco" style="display:none"></div>
+      <input type="file" id="file-banco" accept=".xlsx,.xls,.csv">
+    </label>
+
+    <label class="upload-card contable" id="card-contable" for="file-contable">
+      <div class="upload-icon">📒</div>
+      <h3>Libro contable</h3>
+      <p>Exportación de CONCAR, SISCONT<br>u otro sistema (.xlsx / .csv)</p>
+      <div class="file-name" id="name-contable" style="display:none"></div>
+      <input type="file" id="file-contable" accept=".xlsx,.xls,.csv">
+    </label>
+  </div>
+
+  <div class="demo-hint">
+    ¿No tienes archivos a mano?
+    <button onclick="loadDemoData()">Cargar datos de ejemplo</button>
+  </div>
+
+  <button class="run-btn" id="btn-run" disabled onclick="runConciliation()">
+    ▶ Ejecutar conciliación
+  </button>
+
+  <div id="results">
+    <div class="summary-grid">
+      <div class="stat-card total">
+        <div class="label">Total movimientos</div>
+        <div class="value" id="s-total">—</div>
+        <div class="sub">ambas fuentes</div>
+      </div>
+      <div class="stat-card ok">
+        <div class="label">Conciliados</div>
+        <div class="value" id="s-ok">—</div>
+        <div class="sub" id="s-ok-pct">—</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="label">Diferencias</div>
+        <div class="value" id="s-diff">—</div>
+        <div class="sub">mismo doc, monto distinto</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="label">No encontrados</div>
+        <div class="value" id="s-miss">—</div>
+        <div class="sub">solo en una fuente</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('conciliados')">
+        Conciliados <span class="tab-count" id="tc-ok">0</span>
+      </button>
+      <button class="tab" onclick="showTab('diferencias')">
+        Diferencias <span class="tab-count warn-c" id="tc-diff">0</span>
+      </button>
+      <button class="tab" onclick="showTab('faltantes')">
+        No encontrados <span class="tab-count danger-c" id="tc-miss">0</span>
+      </button>
+    </div>
+
+    <div id="tab-conciliados" class="tab-panel active">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Descripción</th><th>N° Doc</th>
+            <th style="text-align:right">Banco (S/)</th>
+            <th style="text-align:right">Contable (S/)</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-ok"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-diferencias" class="tab-panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Descripción</th><th>N° Doc</th>
+            <th style="text-align:right">Banco (S/)</th>
+            <th style="text-align:right">Contable (S/)</th>
+            <th style="text-align:right">Diferencia</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-diff"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-faltantes" class="tab-panel">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Fecha</th><th>Descripción</th><th>N° Doc</th>
+            <th style="text-align:right">Monto (S/)</th>
+            <th>Fuente</th><th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-miss"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
+      <button class="btn-outline" onclick="window.print()">🖨 Imprimir reporte</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">ConciliaBot — demo construido con Claude Code · datos procesados localmente, nunca se suben a ningún servidor</div>
+
+<script>
+let bancoData = null, contableData = null;
+
+// File handlers
+document.getElementById('file-banco').addEventListener('change', e => {
+  readFile(e.target.files[0], 'banco');
+});
+document.getElementById('file-contable').addEventListener('change', e => {
+  readFile(e.target.files[0], 'contable');
+});
+
+function readFile(file, source) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'binary', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const normalized = normalizeRows(rows, source);
+      if (source === 'banco') {
+        bancoData = normalized;
+        document.getElementById('name-banco').textContent = file.name;
+        document.getElementById('name-banco').style.display = 'inline-block';
+        document.getElementById('card-banco').classList.add('loaded');
+      } else {
+        contableData = normalized;
+        document.getElementById('name-contable').textContent = file.name;
+        document.getElementById('name-contable').style.display = 'inline-block';
+        document.getElementById('card-contable').classList.add('loaded');
+      }
+      checkReady();
+    } catch(err) { alert('Error leyendo archivo: ' + err.message); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function normalizeRows(rows, source) {
+  // Try to auto-detect columns
+  if (!rows.length) return [];
+  const keys = Object.keys(rows[0]).map(k => k.toLowerCase().trim());
+
+  const findCol = (candidates) => {
+    for (const c of candidates) {
+      const found = Object.keys(rows[0]).find(k => k.toLowerCase().includes(c));
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const fechaCol   = findCol(['fecha','date','fec']);
+  const descCol    = findCol(['descripcion','glosa','concepto','detalle','desc','reference','ref']);
+  const docCol     = findCol(['documento','doc','numero','num','voucher','comprobante','nro']);
+  const montoCol   = findCol(['monto','importe','amount','valor','total','debe','haber','cargo','abono']);
+
+  return rows.filter(r => r[montoCol] && r[montoCol] !== '').map((r, i) => ({
+    id: i,
+    fecha: fechaCol ? String(r[fechaCol]).substring(0,10) : '',
+    descripcion: descCol ? String(r[descCol]).substring(0,60) : `Movimiento ${i+1}`,
+    doc: docCol ? String(r[docCol]).trim() : '',
+    monto: parseFloat(String(r[montoCol]).replace(/[^0-9.\-]/g,'')) || 0,
+    fuente: source
+  }));
+}
+
+function checkReady() {
+  document.getElementById('btn-run').disabled = !(bancoData && contableData);
+}
+
+// Demo data
+function loadDemoData() {
+  bancoData = [
+    { id:0, fecha:'2025-03-03', descripcion:'TRANSF CLIENTE ROCA SAC', doc:'TRF-001', monto:15200.00, fuente:'banco' },
+    { id:1, fecha:'2025-03-05', descripcion:'PAGO PROVEEDOR LIMA DIST', doc:'CHQ-0042', monto:-4800.00, fuente:'banco' },
+    { id:2, fecha:'2025-03-08', descripcion:'DEPOSITO EFECTIVO CAJA', doc:'DEP-0091', monto:3500.00, fuente:'banco' },
+    { id:3, fecha:'2025-03-10', descripcion:'CARGO COMISION MANTENIMIENTO', doc:'COM-MAR', monto:-45.00, fuente:'banco' },
+    { id:4, fecha:'2025-03-12', descripcion:'TRANSF CLIENTE NORTE PERU', doc:'TRF-002', monto:8750.00, fuente:'banco' },
+    { id:5, fecha:'2025-03-15', descripcion:'PAGO SUNAT IGV FEBRERO', doc:'PDT-621', monto:-6200.00, fuente:'banco' },
+    { id:6, fecha:'2025-03-18', descripcion:'TRANSF CLIENTE ANDINA SA', doc:'TRF-003', monto:12400.00, fuente:'banco' },
+    { id:7, fecha:'2025-03-20', descripcion:'PAGO PLANILLA MARZO', doc:'NOM-MAR', monto:-18500.00, fuente:'banco' },
+  ];
+  contableData = [
+    { id:0, fecha:'2025-03-03', descripcion:'Cobranza Roca SAC Fact 0042', doc:'TRF-001', monto:15200.00, fuente:'contable' },
+    { id:1, fecha:'2025-03-05', descripcion:'Pago Lima Distribuidores', doc:'CHQ-0042', monto:-4750.00, fuente:'contable' },  // diferencia
+    { id:2, fecha:'2025-03-08', descripcion:'Ingreso caja chica', doc:'DEP-0091', monto:3500.00, fuente:'contable' },
+    { id:3, fecha:'2025-03-12', descripcion:'Cobranza Norte Peru SA', doc:'TRF-002', monto:8750.00, fuente:'contable' },
+    { id:4, fecha:'2025-03-15', descripcion:'PDT 621 IGV Febrero 2025', doc:'PDT-621', monto:-6200.00, fuente:'contable' },
+    { id:5, fecha:'2025-03-18', descripcion:'Cobranza Andina SA Fact 0089', doc:'TRF-003', monto:12400.00, fuente:'contable' },
+    { id:6, fecha:'2025-03-20', descripcion:'Planilla mensual personal', doc:'NOM-MAR', monto:-18500.00, fuente:'contable' },
+    { id:7, fecha:'2025-03-22', descripcion:'Provision honorarios auditor', doc:'HNR-001', monto:-2800.00, fuente:'contable' }, // solo contable
+  ];
+
+  ['banco','contable'].forEach(s => {
+    const el = document.getElementById(`name-${s}`);
+    el.textContent = `datos_${s}_demo.xlsx`;
+    el.style.display = 'inline-block';
+    document.getElementById(`card-${s}`).classList.add('loaded');
+  });
+  checkReady();
+}
+
+// Core conciliation logic
+function runConciliation() {
+  const matched = [], diffs = [], missing = [];
+  const usedContable = new Set();
+
+  for (const b of bancoData) {
+    // Match by doc number (primary) or monto+fecha (fallback)
+    let found = null;
+    if (b.doc) {
+      found = contableData.find(c => !usedContable.has(c.id) && c.doc === b.doc);
+    }
+    if (!found) {
+      found = contableData.find(c =>
+        !usedContable.has(c.id) &&
+        Math.abs(c.monto - b.monto) < 0.01 &&
+        c.fecha === b.fecha
+      );
+    }
+
+    if (found) {
+      usedContable.add(found.id);
+      const delta = Math.abs(b.monto - found.monto);
+      if (delta < 0.01) {
+        matched.push({ ...b, montoContable: found.monto });
+      } else {
+        diffs.push({ ...b, montoContable: found.monto, delta: b.monto - found.monto });
+      }
+    } else {
+      missing.push({ ...b, fuente: 'Solo en banco' });
+    }
+  }
+
+  // Contable entries not matched
+  for (const c of contableData) {
+    if (!usedContable.has(c.id)) {
+      missing.push({ ...c, fuente: 'Solo en sistema' });
+    }
+  }
+
+  renderResults(matched, diffs, missing);
+}
+
+function fmt(n) {
+  return (n < 0 ? '-' : '') + 'S/ ' + Math.abs(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderResults(matched, diffs, missing) {
+  const total = matched.length + diffs.length + missing.length;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-ok').textContent = matched.length;
+  document.getElementById('s-ok-pct').textContent = Math.round(matched.length/total*100) + '% del total';
+  document.getElementById('s-diff').textContent = diffs.length;
+  document.getElementById('s-miss').textContent = missing.length;
+
+  document.getElementById('tc-ok').textContent = matched.length;
+  document.getElementById('tc-diff').textContent = diffs.length;
+  document.getElementById('tc-miss').textContent = missing.length;
+
+  // Conciliados
+  const tbOk = document.getElementById('tbody-ok');
+  tbOk.innerHTML = matched.length ? matched.map(r => `
+    <tr>
+      <td class="mono">${r.fecha}</td>
+      <td>${r.descripcion}</td>
+      <td class="mono">${r.doc||'—'}</td>
+      <td class="amount ${r.monto<0?'neg':'pos'}">${fmt(r.monto)}</td>
+      <td class="amount ${r.monto<0?'neg':'pos'}">${fmt(r.montoContable)}</td>
+      <td><span class="pill ok">Conciliado</span></td>
+    </tr>`).join('') :
+    '<tr><td colspan="6"><div class="empty"><div class="icon">✓</div>Sin movimientos conciliados aún</div></td></tr>';
+
+  // Diferencias
+  const tbDiff = document.getElementById('tbody-diff');
+  tbDiff.innerHTML = diffs.length ? diffs.map(r => `
+    <tr>
+      <td class="mono">${r.fecha}</td>
+      <td>${r.descripcion}</td>
+      <td class="mono">${r.doc||'—'}</td>
+      <td class="amount ${r.monto<0?'neg':'pos'}">${fmt(r.monto)}</td>
+      <td class="amount ${r.montoContable<0?'neg':'pos'}">${fmt(r.montoContable)}</td>
+      <td class="amount ${r.delta<0?'neg':'pos'}">${fmt(r.delta)}</td>
+      <td><span class="pill warn">Diferencia</span></td>
+    </tr>`).join('') :
+    '<tr><td colspan="7"><div class="empty"><div class="icon">🎉</div>Sin diferencias de monto</div></td></tr>';
+
+  // Faltantes
+  const tbMiss = document.getElementById('tbody-miss');
+  tbMiss.innerHTML = missing.length ? missing.map(r => `
+    <tr>
+      <td class="mono">${r.fecha}</td>
+      <td>${r.descripcion}</td>
+      <td class="mono">${r.doc||'—'}</td>
+      <td class="amount ${r.monto<0?'neg':'pos'}">${fmt(r.monto)}</td>
+      <td><span style="font-size:12px;color:var(--muted)">${r.fuente}</span></td>
+      <td><span class="pill danger">No encontrado</span></td>
+    </tr>`).join('') :
+    '<tr><td colspan="6"><div class="empty"><div class="icon">✓</div>Todo encontrado en ambas fuentes</div></td></tr>';
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['conciliados','diferencias','faltantes'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function exportCSV() {
+  const rows = [['Tabla','Fecha','Descripcion','Doc','Banco','Contable','Estado']];
+  document.querySelectorAll('#tbody-ok tr').forEach(tr => {
+    const td = tr.querySelectorAll('td');
+    if (td.length > 1) rows.push(['Conciliado', td[0].textContent, td[1].textContent, td[2].textContent, td[3].textContent, td[4].textContent, 'Conciliado']);
+  });
+  document.querySelectorAll('#tbody-diff tr').forEach(tr => {
+    const td = tr.querySelectorAll('td');
+    if (td.length > 1) rows.push(['Diferencia', td[0].textContent, td[1].textContent, td[2].textContent, td[3].textContent, td[4].textContent, 'Diferencia']);
+  });
+  document.querySelectorAll('#tbody-miss tr').forEach(tr => {
+    const td = tr.querySelectorAll('td');
+    if (td.length > 1) rows.push(['No encontrado', td[0].textContent, td[1].textContent, td[2].textContent, td[3].textContent, '—', td[4].textContent]);
+  });
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\uFEFF'+csv);
+  a.download = 'conciliacion_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+</script>
+</body>
+</html>

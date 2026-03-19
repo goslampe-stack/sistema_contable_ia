@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente Contable IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@400;500&family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #F7F5F0;
+  --surface: #FFFFFF;
+  --surface2: #F0EDE6;
+  --border: #E2DDD4;
+  --border2: #CCC8BE;
+  --ink: #1A1714;
+  --ink2: #6B6560;
+  --ink3: #9E9990;
+  --accent: #C8460A;
+  --accent-light: #FDF1EB;
+  --ok: #1A6B3C;
+  --ok-light: #EBF5F0;
+  --warn: #9A6200;
+  --warn-light: #FEF8EC;
+  --danger: #B91C1C;
+  --danger-light: #FEF2F2;
+  --info: #1D4ED8;
+  --info-light: #EFF6FF;
+  --font-head: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Geist', sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+  --r: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Layout */
+.shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  background: var(--ink);
+  color: #E8E4DC;
+  padding: 28px 20px;
+  display: flex; flex-direction: column; gap: 32px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.brand { padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.brand-name {
+  font-family: var(--font-head); font-size: 22px; font-style: italic;
+  color: #fff; letter-spacing: -0.3px;
+}
+.brand-sub { font-size: 11px; color: rgba(255,255,255,0.35); font-family: var(--font-mono); margin-top: 2px; letter-spacing: 0.5px; }
+
+.nav-label { font-size: 10px; font-family: var(--font-mono); letter-spacing: 1px; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 7px; cursor: pointer;
+  font-size: 13px; color: rgba(255,255,255,0.55);
+  transition: all 0.15s; margin-bottom: 2px;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+.nav-item.active { background: var(--accent); color: #fff; }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.nav-item.active .nav-dot { opacity: 1; }
+
+.api-section { margin-top: auto; }
+.api-label { font-size: 10px; font-family: var(--font-mono); letter-spacing: 1px; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 8px; }
+.api-input {
+  width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: #fff; border-radius: 7px; padding: 9px 12px;
+  font-family: var(--font-mono); font-size: 11px;
+  outline: none; transition: border 0.15s;
+}
+.api-input::placeholder { color: rgba(255,255,255,0.2); }
+.api-input:focus { border-color: var(--accent); }
+.api-hint { font-size: 10px; color: rgba(255,255,255,0.2); margin-top: 6px; line-height: 1.5; }
+
+/* Main */
+.main { padding: 36px 40px; max-width: 900px; }
+
+.page-title {
+  font-family: var(--font-head); font-size: 30px; font-style: italic;
+  color: var(--ink); letter-spacing: -0.5px; margin-bottom: 4px;
+}
+.page-sub { color: var(--ink3); font-size: 13px; margin-bottom: 32px; }
+
+/* Upload zone */
+.upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.upload-zone {
+  border: 1.5px dashed var(--border2); border-radius: var(--r);
+  padding: 24px 20px; text-align: center; cursor: pointer;
+  background: var(--surface); transition: all 0.2s;
+}
+.upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+.upload-zone.loaded { border-style: solid; border-color: var(--ok); background: var(--ok-light); }
+.upload-zone h4 { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.upload-zone p { font-size: 12px; color: var(--ink3); }
+.upload-zone .fname { font-family: var(--font-mono); font-size: 11px; color: var(--ok); margin-top: 8px; display: none; }
+.upload-zone.loaded .fname { display: block; }
+input[type=file] { display: none; }
+
+.demo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.demo-row span { font-size: 12px; color: var(--ink3); }
+.btn-ghost {
+  font-size: 12px; font-family: var(--font-body);
+  padding: 5px 14px; border: 1px solid var(--border2);
+  background: var(--surface); color: var(--ink2);
+  border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-primary {
+  width: 100%; padding: 14px; background: var(--ink);
+  color: #fff; border: none; border-radius: var(--r);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; margin-bottom: 40px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary:hover { background: var(--accent); }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Stats */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+.stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 16px;
+}
+.stat .num { font-family: var(--font-head); font-size: 34px; line-height: 1; margin-bottom: 4px; }
+.stat .lbl { font-size: 11px; font-family: var(--font-mono); color: var(--ink3); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat.s-ok .num { color: var(--ok); }
+.stat.s-warn .num { color: var(--warn); }
+.stat.s-danger .num { color: var(--danger); }
+.stat.s-total .num { color: var(--ink); }
+
+/* Cards de diferencias */
+.section-title {
+  font-family: var(--font-head); font-size: 18px; font-style: italic;
+  margin-bottom: 14px; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+}
+.badge {
+  font-family: var(--font-mono); font-size: 10px; font-style: normal;
+  padding: 3px 8px; border-radius: 20px; font-weight: 500;
+}
+.badge.warn { background: var(--warn-light); color: var(--warn); }
+.badge.danger { background: var(--danger-light); color: var(--danger); }
+.badge.ok { background: var(--ok-light); color: var(--ok); }
+
+.diff-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); margin-bottom: 12px; overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.diff-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+.diff-header {
+  padding: 14px 18px; display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px; cursor: pointer;
+}
+.diff-meta { flex: 1; }
+.diff-desc { font-weight: 500; font-size: 14px; margin-bottom: 3px; }
+.diff-sub { font-size: 12px; color: var(--ink3); font-family: var(--font-mono); }
+.diff-amounts { text-align: right; }
+.diff-bank { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+.diff-delta {
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 2px 8px; border-radius: 4px; margin-top: 4px; display: inline-block;
+}
+.diff-delta.neg { background: var(--danger-light); color: var(--danger); }
+.diff-delta.pos { background: var(--ok-light); color: var(--ok); }
+
+/* IA Analysis box */
+.ai-box {
+  border-top: 1px solid var(--border);
+  padding: 16px 18px;
+  background: var(--surface2);
+  display: none;
+}
+.ai-box.visible { display: block; }
+
+.ai-trigger {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--accent); cursor: pointer;
+  font-weight: 500; padding: 0;
+  background: none; border: none; transition: opacity 0.15s;
+}
+.ai-trigger:hover { opacity: 0.7; }
+.ai-trigger .spinner {
+  width: 14px; height: 14px; border: 1.5px solid var(--border2);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: none;
+}
+.ai-trigger.loading .spinner { display: block; }
+.ai-trigger.loading span { color: var(--ink3); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ai-result { display: none; }
+.ai-result.visible { display: block; }
+
+.ai-section { margin-bottom: 14px; }
+.ai-section-title {
+  font-size: 10px; font-family: var(--font-mono); text-transform: uppercase;
+  letter-spacing: 1px; color: var(--ink3); margin-bottom: 6px;
+}
+.ai-text { font-size: 13px; line-height: 1.65; color: var(--ink2); }
+
+.asiento-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+  font-family: var(--font-mono); margin-top: 4px;
+  border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+}
+.asiento-table th {
+  background: var(--surface2); padding: 7px 12px; text-align: left;
+  font-size: 10px; letter-spacing: 0.5px; color: var(--ink3);
+  text-transform: uppercase; border-bottom: 1px solid var(--border);
+}
+.asiento-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--ink); }
+.asiento-table tr:last-child td { border-bottom: none; }
+.asiento-table .db { color: var(--danger); font-weight: 500; }
+.asiento-table .cr { color: var(--ok); font-weight: 500; }
+.asiento-table .amount-col { text-align: right; }
+
+.approve-btn {
+  margin-top: 10px; padding: 7px 16px;
+  background: var(--ok); color: #fff; border: none;
+  border-radius: 6px; font-size: 12px; font-family: var(--font-body);
+  cursor: pointer; font-weight: 500; transition: opacity 0.15s;
+}
+.approve-btn:hover { opacity: 0.85; }
+.approved-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 10px; font-size: 12px; color: var(--ok);
+  font-family: var(--font-mono);
+}
+
+/* Conciliados table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r); }
+table.clean { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.clean thead th {
+  background: var(--surface2); padding: 10px 14px;
+  text-align: left; font-size: 10px; font-family: var(--font-mono);
+  color: var(--ink3); text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border); font-weight: 500;
+}
+table.clean tbody tr { border-bottom: 1px solid var(--border); }
+table.clean tbody tr:last-child { border-bottom: none; }
+table.clean tbody tr:hover { background: var(--surface2); }
+table.clean td { padding: 10px 14px; }
+td.mono { font-family: var(--font-mono); font-size: 12px; }
+td.right { text-align: right; font-family: var(--font-mono); font-size: 12px; }
+td.green { color: var(--ok); font-weight: 500; }
+td.red { color: var(--danger); font-weight: 500; }
+
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-family: var(--font-mono); font-weight: 500; }
+.pill::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+.pill.ok { background: var(--ok-light); color: var(--ok); }
+.pill.warn { background: var(--warn-light); color: var(--warn); }
+.pill.danger { background: var(--danger-light); color: var(--danger); }
+
+/* Actions */
+.actions-row { display: flex; gap: 10px; margin-top: 24px; }
+.btn-action {
+  padding: 9px 18px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink2);
+  border-radius: 7px; font-size: 13px; cursor: pointer;
+  font-family: var(--font-body); transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-action:hover { border-color: var(--ink); color: var(--ink); }
+
+#results { display: none; animation: rise 0.35s ease; }
+@keyframes rise { from { opacity:0; transform: translateY(14px); } to { opacity:1; transform: translateY(0); } }
+
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 24px 20px; }
+  .stats-row { grid-template-columns: repeat(2,1fr); }
+  .upload-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-name">Agente Contable</div>
+    <div class="brand-sub">POWERED BY CLAUDE IA</div>
+  </div>
+
+  <nav>
+    <div class="nav-label">Módulos</div>
+    <div class="nav-item active"><span class="nav-dot"></span>Conciliación bancaria</div>
+    <div class="nav-item"><span class="nav-dot"></span>Reportes financieros</div>
+    <div class="nav-item"><span class="nav-dot"></span>Análisis de gastos</div>
+    <div class="nav-item"><span class="nav-dot"></span>Alertas SUNAT</div>
+    <div class="nav-item"><span class="nav-dot"></span>Planilla</div>
+  </nav>
+
+  <div class="api-section">
+    <div class="api-label">API Key de Claude</div>
+    <input class="api-input" type="password" id="api-key" placeholder="sk-ant-api03-...">
+    <div class="api-hint">Necesaria para el análisis con IA.<br>Obtén la tuya en console.anthropic.com</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-title">Conciliación bancaria</div>
+  <div class="page-sub">Sube los archivos — la IA analiza las diferencias y sugiere los asientos contables.</div>
+
+  <div class="upload-row">
+    <label class="upload-zone" id="zone-banco" for="file-banco">
+      <h4>Extracto bancario</h4>
+      <p>Excel del banco (BCP, Scotiabank, Interbank...)</p>
+      <div class="fname" id="fname-banco"></div>
+      <input type="file" id="file-banco" accept=".xlsx,.xls,.csv">
+    </label>
+    <label class="upload-zone" id="zone-contable" for="file-contable">
+      <h4>Exportación del sistema</h4>
+      <p>CONCAR, SISCONT u otro (.xlsx / .csv)</p>
+      <div class="fname" id="fname-contable"></div>
+      <input type="file" id="file-contable" accept=".xlsx,.xls,.csv">
+    </label>
+  </div>
+
+  <div class="demo-row">
+    <span>¿No tienes archivos?</span>
+    <button class="btn-ghost" onclick="loadDemo()">Cargar datos de demo</button>
+  </div>
+
+  <button class="btn-primary" id="btn-run" disabled onclick="runAll()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Ejecutar conciliación con IA
+  </button>
+
+  <div id="results">
+    <div class="stats-row">
+      <div class="stat s-total"><div class="num" id="s-total">—</div><div class="lbl">Total movimientos</div></div>
+      <div class="stat s-ok"><div class="num" id="s-ok">—</div><div class="lbl">Conciliados</div></div>
+      <div class="stat s-warn"><div class="num" id="s-diff">—</div><div class="lbl">Con diferencia</div></div>
+      <div class="stat s-danger"><div class="num" id="s-miss">—</div><div class="lbl">No encontrados</div></div>
+    </div>
+
+    <!-- Diferencias -->
+    <div id="section-diff" style="margin-bottom:32px; display:none">
+      <div class="section-title">
+        Diferencias detectadas
+        <span class="badge warn" id="badge-diff">0</span>
+      </div>
+      <div id="cards-diff"></div>
+    </div>
+
+    <!-- No encontrados -->
+    <div id="section-miss" style="margin-bottom:32px; display:none">
+      <div class="section-title">
+        No encontrados
+        <span class="badge danger" id="badge-miss">0</span>
+      </div>
+      <div id="cards-miss"></div>
+    </div>
+
+    <!-- Conciliados -->
+    <div id="section-ok" style="margin-bottom:32px; display:none">
+      <div class="section-title">
+        Conciliados correctamente
+        <span class="badge ok" id="badge-ok">0</span>
+      </div>
+      <div class="table-wrap">
+        <table class="clean">
+          <thead><tr>
+            <th>Fecha</th><th>Descripción</th><th>N° Doc</th>
+            <th style="text-align:right">Banco S/</th>
+            <th style="text-align:right">Sistema S/</th>
+            <th>Estado</th>
+          </tr></thead>
+          <tbody id="tbody-ok"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn-action" onclick="exportCSV()">↓ Exportar CSV</button>
+      <button class="btn-action" onclick="window.print()">⎙ Imprimir</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+let bancoData = null, contableData = null;
+const approvedCards = new Set();
+
+document.getElementById('file-banco').addEventListener('change', e => readFile(e.target.files[0], 'banco'));
+document.getElementById('file-contable').addEventListener('change', e => readFile(e.target.files[0], 'contable'));
+
+function readFile(file, src) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type:'binary', cellDates:true });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+      const norm = normalizeRows(rows, src);
+      if (src === 'banco') { bancoData = norm; setZoneLoaded('banco', file.name); }
+      else { contableData = norm; setZoneLoaded('contable', file.name); }
+      checkReady();
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+  r.readAsBinaryString(file);
+}
+
+function setZoneLoaded(src, name) {
+  document.getElementById(`zone-${src}`).classList.add('loaded');
+  document.getElementById(`fname-${src}`).textContent = name;
+}
+
+function normalizeRows(rows, src) {
+  if (!rows.length) return [];
+  const find = (...cands) => Object.keys(rows[0]).find(k => cands.some(c => k.toLowerCase().includes(c)));
+  const fCol = find('fecha','date','fec');
+  const dCol = find('descripcion','glosa','concepto','detalle','desc','ref');
+  const nCol = find('documento','doc','numero','num','voucher','nro');
+  const mCol = find('monto','importe','amount','valor','total','debe','haber','cargo','abono');
+  return rows.filter(r => r[mCol] !== '').map((r, i) => ({
+    id: i,
+    fecha: fCol ? String(r[fCol]).slice(0,10) : '',
+    descripcion: dCol ? String(r[dCol]).slice(0,70) : `Mov. ${i+1}`,
+    doc: nCol ? String(r[nCol]).trim() : '',
+    monto: parseFloat(String(r[mCol]).replace(/[^0-9.\-]/g,'')) || 0,
+    fuente: src
+  }));
+}
+
+function checkReady() {
+  document.getElementById('btn-run').disabled = !(bancoData && contableData);
+}
+
+function loadDemo() {
+  bancoData = [
+    { id:0, fecha:'2025-03-03', descripcion:'TRANSF CLIENTE ROCA SAC', doc:'TRF-001', monto:15200.00 },
+    { id:1, fecha:'2025-03-05', descripcion:'PAGO PROVEEDOR LIMA DIST', doc:'CHQ-0042', monto:-4800.00 },
+    { id:2, fecha:'2025-03-08', descripcion:'DEPOSITO EFECTIVO CAJA', doc:'DEP-0091', monto:3500.00 },
+    { id:3, fecha:'2025-03-10', descripcion:'CARGO COMISION MANTENIMIENTO', doc:'COM-MAR', monto:-45.00 },
+    { id:4, fecha:'2025-03-12', descripcion:'TRANSF CLIENTE NORTE PERU', doc:'TRF-002', monto:8750.00 },
+    { id:5, fecha:'2025-03-15', descripcion:'PAGO SUNAT IGV FEBRERO', doc:'PDT-621', monto:-6200.00 },
+    { id:6, fecha:'2025-03-18', descripcion:'TRANSF CLIENTE ANDINA SA', doc:'TRF-003', monto:12400.00 },
+    { id:7, fecha:'2025-03-20', descripcion:'PAGO PLANILLA MARZO', doc:'NOM-MAR', monto:-18500.00 },
+  ];
+  contableData = [
+    { id:0, fecha:'2025-03-03', descripcion:'Cobranza Roca SAC Fact 0042', doc:'TRF-001', monto:15200.00 },
+    { id:1, fecha:'2025-03-05', descripcion:'Pago Lima Distribuidores', doc:'CHQ-0042', monto:-4750.00 },
+    { id:2, fecha:'2025-03-08', descripcion:'Ingreso caja chica', doc:'DEP-0091', monto:3500.00 },
+    { id:3, fecha:'2025-03-12', descripcion:'Cobranza Norte Peru SA', doc:'TRF-002', monto:8750.00 },
+    { id:4, fecha:'2025-03-15', descripcion:'PDT 621 IGV Febrero 2025', doc:'PDT-621', monto:-6200.00 },
+    { id:5, fecha:'2025-03-18', descripcion:'Cobranza Andina SA Fact 0089', doc:'TRF-003', monto:12400.00 },
+    { id:6, fecha:'2025-03-20', descripcion:'Planilla mensual personal', doc:'NOM-MAR', monto:-18500.00 },
+    { id:7, fecha:'2025-03-22', descripcion:'Provision honorarios auditor', doc:'HNR-001', monto:-2800.00 },
+  ];
+  setZoneLoaded('banco', 'extracto_banco_marzo.xlsx');
+  setZoneLoaded('contable', 'concar_marzo_2025.xlsx');
+  checkReady();
+}
+
+function fmt(n) {
+  const s = Math.abs(n).toLocaleString('es-PE', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  return (n < 0 ? '-' : '') + 'S/ ' + s;
+}
+
+function runAll() {
+  const matched = [], diffs = [], missing = [];
+  const usedC = new Set();
+
+  for (const b of bancoData) {
+    let found = b.doc ? contableData.find(c => !usedC.has(c.id) && c.doc === b.doc) : null;
+    if (!found) found = contableData.find(c => !usedC.has(c.id) && Math.abs(c.monto - b.monto) < 0.01 && c.fecha === b.fecha);
+    if (found) {
+      usedC.add(found.id);
+      Math.abs(b.monto - found.monto) < 0.01
+        ? matched.push({ ...b, montoC: found.monto })
+        : diffs.push({ ...b, montoC: found.monto, delta: b.monto - found.monto });
+    } else {
+      missing.push({ ...b, fuenteLabel: 'Solo en banco' });
+    }
+  }
+  for (const c of contableData) {
+    if (!usedC.has(c.id)) missing.push({ ...c, fuenteLabel: 'Solo en sistema' });
+  }
+
+  const total = matched.length + diffs.length + missing.length;
+  document.getElementById('s-total').textContent = total;
+  document.getElementById('s-ok').textContent = matched.length;
+  document.getElementById('s-diff').textContent = diffs.length;
+  document.getElementById('s-miss').textContent = missing.length;
+  document.getElementById('badge-diff').textContent = diffs.length;
+  document.getElementById('badge-miss').textContent = missing.length;
+  document.getElementById('badge-ok').textContent = matched.length;
+
+  // Diferencias cards
+  const cDiff = document.getElementById('cards-diff');
+  if (diffs.length) {
+    document.getElementById('section-diff').style.display = 'block';
+    cDiff.innerHTML = diffs.map((r, i) => buildDiffCard(r, i, 'diff')).join('');
+  }
+
+  // Missing cards
+  const cMiss = document.getElementById('cards-miss');
+  if (missing.length) {
+    document.getElementById('section-miss').style.display = 'block';
+    cMiss.innerHTML = missing.map((r, i) => buildDiffCard(r, i, 'miss')).join('');
+  }
+
+  // Conciliados tabla
+  if (matched.length) {
+    document.getElementById('section-ok').style.display = 'block';
+    document.getElementById('tbody-ok').innerHTML = matched.map(r => `
+      <tr>
+        <td class="mono">${r.fecha}</td>
+        <td>${r.descripcion}</td>
+        <td class="mono">${r.doc||'—'}</td>
+        <td class="right ${r.monto<0?'red':'green'}">${fmt(r.monto)}</td>
+        <td class="right ${r.montoC<0?'red':'green'}">${fmt(r.montoC)}</td>
+        <td><span class="pill ok">Conciliado</span></td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+
+  // Store for AI
+  window._diffs = diffs;
+  window._missing = missing;
+}
+
+function buildDiffCard(r, i, type) {
+  const delta = r.delta !== undefined ? r.delta : null;
+  const deltaHtml = delta !== null
+    ? `<div class="diff-delta ${delta < 0 ? 'neg':'pos'}">${delta > 0 ? '+':''}${fmt(delta)}</div>`
+    : `<div class="diff-delta neg">${r.fuenteLabel}</div>`;
+
+  const montoContable = r.montoC !== undefined
+    ? `<div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono)">Sistema: ${fmt(r.montoC)}</div>` : '';
+
+  return `
+  <div class="diff-card" id="card-${type}-${i}">
+    <div class="diff-header" onclick="toggleAI('${type}',${i})">
+      <div class="diff-meta">
+        <div class="diff-desc">${r.descripcion}</div>
+        <div class="diff-sub">${r.fecha} · Doc: ${r.doc||'sin nro'}</div>
+      </div>
+      <div class="diff-amounts">
+        <div class="diff-bank">${fmt(r.monto)}</div>
+        ${montoContable}
+        ${deltaHtml}
+      </div>
+    </div>
+    <div class="ai-box" id="aibox-${type}-${i}">
+      <button class="ai-trigger" id="trigger-${type}-${i}" onclick="analyzeWithAI(event,'${type}',${i})">
+        <div class="spinner"></div>
+        <span>✦ Analizar con IA — ver causa y asiento sugerido</span>
+      </button>
+      <div class="ai-result" id="airesult-${type}-${i}"></div>
+    </div>
+  </div>`;
+}
+
+function toggleAI(type, i) {
+  const box = document.getElementById(`aibox-${type}-${i}`);
+  box.classList.toggle('visible');
+}
+
+async function analyzeWithAI(e, type, i) {
+  e.stopPropagation();
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey) {
+    alert('Ingresa tu API Key de Claude en el panel izquierdo para usar el análisis con IA.\n\nPuedes obtenerla gratis en: console.anthropic.com');
+    return;
+  }
+
+  const trigger = document.getElementById(`trigger-${type}-${i}`);
+  const resultDiv = document.getElementById(`airesult-${type}-${i}`);
+
+  trigger.classList.add('loading');
+  trigger.querySelector('span').textContent = 'Analizando con Claude...';
+
+  const item = type === 'diff' ? window._diffs[i] : window._missing[i];
+
+  const prompt = type === 'diff'
+    ? `Eres un contador experto en Perú con conocimiento de PCGE y normas SUNAT.
+Analiza esta diferencia en una conciliación bancaria:
+
+- Descripción: ${item.descripcion}
+- Documento: ${item.doc || 'sin número'}
+- Fecha: ${item.fecha}
+- Monto banco: S/ ${item.monto}
+- Monto sistema contable: S/ ${item.montoC}
+- Diferencia: S/ ${item.delta}
+
+Responde SOLO en este formato JSON exacto, sin texto adicional ni backticks:
+{
+  "causa": "explicación breve y específica de la probable causa (máximo 2 oraciones)",
+  "accion": "qué debe hacer el contador para resolverlo (máximo 2 oraciones)",
+  "asiento": [
+    {"cuenta": "XX Nombre cuenta", "tipo": "DB", "monto": 0.00, "glosa": "descripción"},
+    {"cuenta": "XX Nombre cuenta", "tipo": "CR", "monto": 0.00, "glosa": "descripción"}
+  ]
+}`
+    : `Eres un contador experto en Perú con conocimiento de PCGE y normas SUNAT.
+Analiza este movimiento que aparece solo en una fuente de la conciliación bancaria:
+
+- Descripción: ${item.descripcion}
+- Documento: ${item.doc || 'sin número'}
+- Fecha: ${item.fecha}
+- Monto: S/ ${item.monto}
+- Fuente: ${item.fuenteLabel}
+
+Responde SOLO en este formato JSON exacto, sin texto adicional ni backticks:
+{
+  "causa": "explicación breve de por qué podría aparecer solo en una fuente (máximo 2 oraciones)",
+  "accion": "qué debe hacer el contador para resolverlo (máximo 2 oraciones)",
+  "asiento": [
+    {"cuenta": "XX Nombre cuenta", "tipo": "DB", "monto": 0.00, "glosa": "descripción"},
+    {"cuenta": "XX Nombre cuenta", "tipo": "CR", "monto": 0.00, "glosa": "descripción"}
+  ]
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.map(b => b.text || '').join('') || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+
+    const asientoRows = parsed.asiento.map(a => `
+      <tr>
+        <td>${a.cuenta}</td>
+        <td class="${a.tipo === 'DB' ? 'db':'cr'}">${a.tipo}</td>
+        <td class="amount-col">${a.tipo==='DB' ? fmt(Math.abs(a.monto)) : ''}</td>
+        <td class="amount-col">${a.tipo==='CR' ? fmt(Math.abs(a.monto)) : ''}</td>
+        <td>${a.glosa}</td>
+      </tr>`).join('');
+
+    resultDiv.innerHTML = `
+      <div style="margin-top:14px">
+        <div class="ai-section">
+          <div class="ai-section-title">Probable causa</div>
+          <div class="ai-text">${parsed.causa}</div>
+        </div>
+        <div class="ai-section">
+          <div class="ai-section-title">Acción recomendada</div>
+          <div class="ai-text">${parsed.accion}</div>
+        </div>
+        <div class="ai-section">
+          <div class="ai-section-title">Asiento contable sugerido</div>
+          <table class="asiento-table">
+            <thead><tr><th>Cuenta</th><th>Tipo</th><th style="text-align:right">Débito S/</th><th style="text-align:right">Crédito S/</th><th>Glosa</th></tr></thead>
+            <tbody>${asientoRows}</tbody>
+          </table>
+          <div id="approve-${type}-${i}">
+            <button class="approve-btn" onclick="approveAsiento('${type}',${i})">✓ Aprobar asiento</button>
+          </div>
+        </div>
+      </div>`;
+
+    trigger.style.display = 'none';
+    resultDiv.classList.add('visible');
+
+  } catch (err) {
+    trigger.classList.remove('loading');
+    trigger.querySelector('span').textContent = '✦ Analizar con IA — ver causa y asiento sugerido';
+    alert('Error al conectar con Claude: ' + err.message + '\n\nVerifica tu API Key.');
+  }
+}
+
+function approveAsiento(type, i) {
+  const btn = document.getElementById(`approve-${type}-${i}`);
+  btn.innerHTML = '<div class="approved-tag">✓ Asiento aprobado y registrado</div>';
+  approvedCards.add(`${type}-${i}`);
+}
+
+function exportCSV() {
+  const rows = [['Tipo','Fecha','Descripcion','Doc','Monto Banco','Monto Sistema','Diferencia','Estado']];
+  (window._diffs||[]).forEach(r => rows.push(['Diferencia',r.fecha,r.descripcion,r.doc,r.monto,r.montoC,r.delta,'Diferencia']));
+  (window._missing||[]).forEach(r => rows.push(['No encontrado',r.fecha,r.descripcion,r.doc,r.monto,'—','—',r.fuenteLabel]));
+  const csv = rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'conciliacion_ia_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
