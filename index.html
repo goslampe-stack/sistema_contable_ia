@@ -697,7 +697,7 @@ function approveAsiento(type, i) {
   btn.innerHTML = '<div class="approved-tag">✓ Asiento aprobado y registrado</div>';
   approvedCards.add(`${type}-${i}`);
 }
-
+/* asd */
 function exportCSV() {
   const rows = [['Tipo','Fecha','Descripcion','Doc','Monto Banco','Monto Sistema','Diferencia','Estado']];
   (window._diffs||[]).forEach(r => rows.push(['Diferencia',r.fecha,r.descripcion,r.doc,r.monto,r.montoC,r.delta,'Diferencia']));

@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente Contable IA — Conciliación Completa</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@400;500&family=Geist:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg: #F7F5F0;
+  --surface: #FFFFFF;
+  --surface2: #F0EDE6;
+  --border: #E2DDD4;
+  --border2: #CCC8BE;
+  --ink: #1A1714;
+  --ink2: #6B6560;
+  --ink3: #9E9990;
+  --accent: #C8460A;
+  --accent-light: #FDF1EB;
+  --ok: #1A6B3C;
+  --ok-light: #EBF5F0;
+  --warn: #9A6200;
+  --warn-light: #FEF8EC;
+  --danger: #B91C1C;
+  --danger-light: #FEF2F2;
+  --info: #1D4ED8;
+  --info-light: #EFF6FF;
+  --font-head: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Geist', sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+  --r: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.6; }
+
+/* SHELL */
+.shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+.sidebar {
+  background: var(--ink); color: #E8E4DC; padding: 28px 20px;
+  display: flex; flex-direction: column; gap: 28px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.brand-name { font-family: var(--font-head); font-size: 22px; font-style: italic; color: #fff; }
+.brand-sub { font-size: 11px; color: rgba(255,255,255,0.3); font-family: var(--font-mono); margin-top: 2px; letter-spacing: 0.5px; }
+.nav-label { font-size: 10px; font-family: var(--font-mono); letter-spacing: 1px; color: rgba(255,255,255,0.25); text-transform: uppercase; margin-bottom: 6px; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:7px; cursor:pointer; font-size:13px; color:rgba(255,255,255,0.5); transition:all 0.15s; margin-bottom:2px; }
+.nav-item:hover { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.85); }
+.nav-item.active { background:var(--accent); color:#fff; }
+.nav-dot { width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.5; }
+.nav-item.active .nav-dot { opacity:1; }
+.api-section { margin-top:auto; }
+.api-label { font-size:10px; font-family:var(--font-mono); letter-spacing:1px; color:rgba(255,255,255,0.25); text-transform:uppercase; margin-bottom:6px; }
+.api-input { width:100%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:7px; padding:9px 12px; font-family:var(--font-mono); font-size:11px; outline:none; transition:border 0.15s; }
+.api-input::placeholder { color:rgba(255,255,255,0.2); }
+.api-input:focus { border-color:var(--accent); }
+.api-hint { font-size:10px; color:rgba(255,255,255,0.2); margin-top:6px; line-height:1.5; }
+
+.main { padding: 36px 40px; max-width: 960px; }
+.page-title { font-family:var(--font-head); font-size:30px; font-style:italic; letter-spacing:-0.5px; margin-bottom:4px; }
+.page-sub { color:var(--ink3); font-size:13px; margin-bottom:28px; }
+
+/* SETUP FORM */
+.setup-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.setup-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+.field label { display:block; font-size:11px; font-family:var(--font-mono); color:var(--ink3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
+.field input, .field select {
+  width:100%; padding:9px 12px; border:1px solid var(--border2);
+  border-radius:7px; font-family:var(--font-body); font-size:13px;
+  background:var(--surface); color:var(--ink); outline:none; transition:border 0.15s;
+}
+.field input:focus, .field select:focus { border-color:var(--accent); }
+
+.divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+
+.upload-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.upload-zone { border:1.5px dashed var(--border2); border-radius:var(--r); padding:20px; text-align:center; cursor:pointer; background:var(--surface); transition:all 0.2s; }
+.upload-zone:hover { border-color:var(--accent); background:var(--accent-light); }
+.upload-zone.loaded { border-style:solid; border-color:var(--ok); background:var(--ok-light); }
+.upload-zone h4 { font-size:13px; font-weight:500; margin-bottom:3px; }
+.upload-zone p { font-size:12px; color:var(--ink3); }
+.upload-zone .fname { font-family:var(--font-mono); font-size:11px; color:var(--ok); margin-top:6px; display:none; }
+.upload-zone.loaded .fname { display:block; }
+input[type=file] { display:none; }
+
+.demo-row { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+.demo-row span { font-size:12px; color:var(--ink3); }
+.btn-ghost { font-size:12px; padding:5px 14px; border:1px solid var(--border2); background:var(--surface); color:var(--ink2); border-radius:6px; cursor:pointer; transition:all 0.15s; font-family:var(--font-body); }
+.btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
+
+.btn-primary { width:100%; padding:14px; background:var(--ink); color:#fff; border:none; border-radius:var(--r); font-family:var(--font-body); font-size:14px; font-weight:500; cursor:pointer; transition:all 0.2s; margin-bottom:40px; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-primary:hover { background:var(--accent); }
+.btn-primary:disabled { opacity:0.35; cursor:not-allowed; }
+
+/* RESULTS */
+#results { display:none; animation:rise 0.35s ease; }
+@keyframes rise { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+/* SECCIÓN: Encabezado oficial */
+.doc-header {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r); padding:24px 28px; margin-bottom:20px;
+}
+.doc-header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+.doc-empresa { font-family:var(--font-head); font-size:22px; font-style:italic; }
+.doc-ruc { font-size:12px; color:var(--ink3); font-family:var(--font-mono); margin-top:2px; }
+.doc-titulo { text-align:right; }
+.doc-titulo h2 { font-size:15px; font-weight:500; text-transform:uppercase; letter-spacing:1px; }
+.doc-titulo p { font-size:12px; color:var(--ink3); font-family:var(--font-mono); margin-top:2px; }
+.doc-meta-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding-top:16px; border-top:1px solid var(--border); }
+.doc-meta-item .lbl { font-size:10px; font-family:var(--font-mono); color:var(--ink3); text-transform:uppercase; letter-spacing:0.5px; }
+.doc-meta-item .val { font-size:13px; font-weight:500; margin-top:2px; }
+
+/* SECCIÓN: Saldo conciliado */
+.saldo-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+.saldo-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:20px 22px; }
+.saldo-card .title { font-size:11px; font-family:var(--font-mono); color:var(--ink3); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; }
+.saldo-row { display:flex; justify-content:space-between; padding:5px 0; font-size:13px; }
+.saldo-row.total { border-top:1.5px solid var(--ink); margin-top:4px; padding-top:8px; font-weight:500; font-size:14px; }
+.saldo-row.total .amount { font-family:var(--font-head); font-size:18px; }
+.saldo-row .amount { font-family:var(--font-mono); }
+.saldo-row .amount.ok { color:var(--ok); }
+.saldo-row .amount.danger { color:var(--danger); }
+.match-badge { display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; border-radius:7px; margin-top:12px; font-size:13px; font-weight:500; }
+.match-badge.ok { background:var(--ok-light); color:var(--ok); }
+.match-badge.warn { background:var(--warn-light); color:var(--warn); }
+
+/* SECCIÓN: KPIs */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px; }
+.stat .num { font-family:var(--font-head); font-size:30px; line-height:1; margin-bottom:3px; }
+.stat .lbl { font-size:10px; font-family:var(--font-mono); color:var(--ink3); text-transform:uppercase; letter-spacing:0.5px; }
+.stat .sub { font-size:11px; color:var(--ink3); margin-top:2px; }
+.stat.s-ok .num { color:var(--ok); }
+.stat.s-warn .num { color:var(--warn); }
+.stat.s-danger .num { color:var(--danger); }
+
+/* SECCIÓN: Antigüedad */
+.aging-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.aging-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:16px; }
+.aging-card .range { font-size:11px; font-family:var(--font-mono); color:var(--ink3); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; }
+.aging-card .count { font-family:var(--font-head); font-size:28px; line-height:1; }
+.aging-card .amount { font-size:12px; font-family:var(--font-mono); color:var(--ink3); margin-top:2px; }
+.aging-bar { height:4px; border-radius:2px; margin-top:10px; background:var(--border); overflow:hidden; }
+.aging-bar-fill { height:100%; border-radius:2px; transition:width 0.6s ease; }
+.aging-card.age-ok .count { color:var(--ok); }
+.aging-card.age-ok .aging-bar-fill { background:var(--ok); }
+.aging-card.age-warn .count { color:var(--warn); }
+.aging-card.age-warn .aging-bar-fill { background:var(--warn); }
+.aging-card.age-danger .count { color:var(--danger); }
+.aging-card.age-danger .aging-bar-fill { background:var(--danger); }
+
+/* SECCIÓN: Partidas en tránsito */
+.section-block { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); margin-bottom:16px; overflow:hidden; }
+.section-head { padding:14px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); background:var(--surface2); }
+.section-head h3 { font-size:14px; font-weight:500; }
+.section-head .meta { font-size:12px; color:var(--ink3); font-family:var(--font-mono); }
+
+table.pro { width:100%; border-collapse:collapse; font-size:13px; }
+table.pro thead th { padding:10px 16px; text-align:left; font-size:10px; font-family:var(--font-mono); color:var(--ink3); text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--border); font-weight:500; }
+table.pro tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; }
+table.pro tbody tr:last-child { border-bottom:none; }
+table.pro tbody tr:hover { background:var(--surface2); }
+table.pro td { padding:10px 16px; }
+td.mono { font-family:var(--font-mono); font-size:12px; }
+td.right { text-align:right; font-family:var(--font-mono); font-size:12px; }
+td.ok { color:var(--ok); font-weight:500; }
+td.danger { color:var(--danger); font-weight:500; }
+td.warn { color:var(--warn); font-weight:500; }
+.pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:10px; font-family:var(--font-mono); font-weight:500; }
+.pill::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+.pill.ok { background:var(--ok-light); color:var(--ok); }
+.pill.warn { background:var(--warn-light); color:var(--warn); }
+.pill.danger { background:var(--danger-light); color:var(--danger); }
+.pill.info { background:var(--info-light); color:var(--info); }
+
+/* IA en cards */
+.ai-row { padding:12px 16px; border-top:1px solid var(--border); background:var(--surface2); }
+.ai-trigger { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--accent); cursor:pointer; font-weight:500; background:none; border:none; transition:opacity 0.15s; }
+.ai-trigger:hover { opacity:0.7; }
+.spinner { width:13px; height:13px; border:1.5px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; display:none; }
+.ai-trigger.loading .spinner { display:block; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.ai-result { display:none; margin-top:12px; }
+.ai-result.visible { display:block; }
+.ai-section-title { font-size:10px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:1px; color:var(--ink3); margin-bottom:5px; }
+.ai-text { font-size:13px; line-height:1.65; color:var(--ink2); margin-bottom:12px; }
+.asiento-table { width:100%; border-collapse:collapse; font-size:12px; font-family:var(--font-mono); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.asiento-table th { background:var(--surface2); padding:7px 12px; text-align:left; font-size:10px; letter-spacing:0.5px; color:var(--ink3); text-transform:uppercase; border-bottom:1px solid var(--border); }
+.asiento-table td { padding:7px 12px; border-bottom:1px solid var(--border); }
+.asiento-table tr:last-child td { border-bottom:none; }
+.asiento-table .db { color:var(--danger); font-weight:500; }
+.asiento-table .cr { color:var(--ok); font-weight:500; }
+.approve-btn { margin-top:10px; padding:7px 16px; background:var(--ok); color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:500; transition:opacity 0.15s; font-family:var(--font-body); }
+.approve-btn:hover { opacity:0.85; }
+.approved-tag { display:inline-flex; align-items:center; gap:5px; margin-top:10px; font-size:12px; color:var(--ok); font-family:var(--font-mono); }
+
+/* FIRMA */
+.firma-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:24px 28px; margin-bottom:24px; }
+.firma-grid { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:16px; }
+.firma-block { text-align:center; }
+.firma-line { border-top:1px solid var(--ink); margin-top:50px; padding-top:8px; }
+.firma-name { font-size:13px; font-weight:500; }
+.firma-role { font-size:11px; color:var(--ink3); font-family:var(--font-mono); }
+.firma-input { border:none; border-bottom:1px dashed var(--border2); outline:none; width:100%; text-align:center; font-family:var(--font-body); font-size:13px; padding:4px 0; background:transparent; color:var(--ink); }
+
+/* ACCIONES */
+.actions-row { display:flex; gap:10px; margin-bottom:48px; flex-wrap:wrap; }
+.btn-action { padding:9px 18px; border:1px solid var(--border); background:var(--surface); color:var(--ink2); border-radius:7px; font-size:13px; cursor:pointer; font-family:var(--font-body); transition:all 0.15s; display:flex; align-items:center; gap:6px; }
+.btn-action:hover { border-color:var(--ink); color:var(--ink); }
+.btn-action.primary-act { background:var(--ink); color:#fff; border-color:var(--ink); }
+.btn-action.primary-act:hover { background:var(--accent); border-color:var(--accent); }
+
+/* PRINT */
+@media print {
+  .sidebar, .setup-section, .btn-primary, .actions-row, .ai-trigger, .demo-row { display:none !important; }
+  .shell { grid-template-columns:1fr; }
+  .main { padding:20px; max-width:100%; }
+  #results { display:block !important; }
+  .diff-card, .section-block, .saldo-card, .aging-card, .stat, .doc-header, .firma-section { break-inside:avoid; }
+  body { background:#fff; font-size:12px; }
+  .page-title { font-size:22px; }
+}
+
+@media (max-width:768px) {
+  .shell { grid-template-columns:1fr; }
+  .sidebar { display:none; }
+  .main { padding:20px; }
+  .stats-row, .aging-grid, .saldo-grid { grid-template-columns:1fr 1fr; }
+  .setup-grid, .setup-grid-3, .upload-row { grid-template-columns:1fr; }
+  .doc-meta-grid { grid-template-columns:1fr 1fr; }
+  .firma-grid { grid-template-columns:1fr; gap:24px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="sidebar">
+  <div>
+    <div class="brand-name">Agente Contable</div>
+    <div class="brand-sub">POWERED BY CLAUDE IA</div>
+  </div>
+  <nav>
+    <div class="nav-label">Módulos</div>
+    <div class="nav-item active"><span class="nav-dot"></span>Conciliación bancaria</div>
+    <div class="nav-item"><span class="nav-dot"></span>Reportes financieros</div>
+    <div class="nav-item"><span class="nav-dot"></span>Análisis de gastos</div>
+    <div class="nav-item"><span class="nav-dot"></span>Alertas SUNAT</div>
+    <div class="nav-item"><span class="nav-dot"></span>Planilla</div>
+  </nav>
+  <div class="api-section">
+    <div class="api-label">API Key de Claude</div>
+    <input class="api-input" type="password" id="api-key" placeholder="sk-ant-api03-...">
+    <div class="api-hint">Para el análisis IA de diferencias.<br>Obtén la tuya en console.anthropic.com</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-title">Conciliación bancaria</div>
+  <div class="page-sub">Documento oficial — empresa, periodo, saldo conciliado, partidas en tránsito y firma del contador.</div>
+
+  <div class="setup-section">
+    <!-- Datos de la empresa -->
+    <div class="setup-grid">
+      <div class="field"><label>Empresa / Razón social</label><input id="f-empresa" type="text" placeholder="Ej: Importaciones Lima SAC"></div>
+      <div class="field"><label>RUC</label><input id="f-ruc" type="text" placeholder="20XXXXXXXXX"></div>
+    </div>
+    <div class="setup-grid-3">
+      <div class="field"><label>Banco</label>
+        <select id="f-banco">
+          <option>BCP</option><option>Scotiabank</option><option>Interbank</option>
+          <option>BBVA</option><option>BanBif</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="field"><label>Número de cuenta</label><input id="f-cuenta" type="text" placeholder="000-XXXXXXXX-X-XX"></div>
+      <div class="field"><label>Moneda</label>
+        <select id="f-moneda"><option>Soles (S/)</option><option>Dólares (US$)</option></select>
+      </div>
+    </div>
+    <div class="setup-grid">
+      <div class="field"><label>Periodo</label><input id="f-periodo" type="month" value="2025-03"></div>
+      <div class="field"><label>Elaborado por</label><input id="f-contador" type="text" placeholder="Nombre del contador"></div>
+    </div>
+    <div class="setup-grid">
+      <div class="field"><label>Saldo según banco (extracto)</label><input id="f-saldo-banco" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="field"><label>Saldo según libros (sistema)</label><input id="f-saldo-libros" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="upload-row">
+      <label class="upload-zone" id="zone-banco" for="file-banco">
+        <h4>Extracto bancario</h4>
+        <p>Excel del banco (.xlsx / .csv)</p>
+        <div class="fname" id="fname-banco"></div>
+        <input type="file" id="file-banco" accept=".xlsx,.xls,.csv">
+      </label>
+      <label class="upload-zone" id="zone-contable" for="file-contable">
+        <h4>Exportación del sistema</h4>
+        <p>CONCAR, SISCONT u otro</p>
+        <div class="fname" id="fname-contable"></div>
+        <input type="file" id="file-contable" accept=".xlsx,.xls,.csv">
+      </label>
+    </div>
+
+    <div class="demo-row">
+      <span>¿No tienes archivos?</span>
+      <button class="btn-ghost" onclick="loadDemo()">Cargar datos de demo</button>
+    </div>
+
+    <button class="btn-primary" id="btn-run" disabled onclick="runAll()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Generar conciliación completa
+    </button>
+  </div>
+
+  <!-- ===== RESULTADOS ===== -->
+  <div id="results">
+
+    <!-- 1. ENCABEZADO OFICIAL -->
+    <div class="doc-header">
+      <div class="doc-header-top">
+        <div>
+          <div class="doc-empresa" id="r-empresa">—</div>
+          <div class="doc-ruc" id="r-ruc">RUC: —</div>
+        </div>
+        <div class="doc-titulo">
+          <h2>Conciliación bancaria</h2>
+          <p id="r-periodo-titulo">Periodo: —</p>
+        </div>
+      </div>
+      <div class="doc-meta-grid">
+        <div class="doc-meta-item"><div class="lbl">Banco</div><div class="val" id="r-banco">—</div></div>
+        <div class="doc-meta-item"><div class="lbl">Cuenta</div><div class="val" id="r-cuenta">—</div></div>
+        <div class="doc-meta-item"><div class="lbl">Moneda</div><div class="val" id="r-moneda">—</div></div>
+        <div class="doc-meta-item"><div class="lbl">Fecha de elaboración</div><div class="val" id="r-fecha-elab">—</div></div>
+      </div>
+    </div>
+
+    <!-- 2. SALDO CONCILIADO -->
+    <div class="saldo-grid">
+      <div class="saldo-card">
+        <div class="title">Conciliación según banco</div>
+        <div class="saldo-row"><span>Saldo extracto bancario</span><span class="amount" id="s-banco-inicial">—</span></div>
+        <div class="saldo-row" id="row-transito-banco" style="display:none"><span>(+) Depósitos en tránsito</span><span class="amount ok" id="s-depositos-transito">—</span></div>
+        <div class="saldo-row" id="row-cheques-banco" style="display:none"><span>(−) Cheques en tránsito</span><span class="amount danger" id="s-cheques-transito">—</span></div>
+        <div class="saldo-row" id="row-cargos-banco" style="display:none"><span>(−) Cargos bancarios no reg.</span><span class="amount danger" id="s-cargos-no-reg">—</span></div>
+        <div class="saldo-row total"><span>Saldo ajustado banco</span><span class="amount ok" id="s-banco-ajustado">—</span></div>
+      </div>
+      <div class="saldo-card">
+        <div class="title">Conciliación según libros</div>
+        <div class="saldo-row"><span>Saldo según sistema contable</span><span class="amount" id="s-libros-inicial">—</span></div>
+        <div class="saldo-row" id="row-errores-libros" style="display:none"><span>(±) Errores en libros</span><span class="amount warn" id="s-errores-libros">—</span></div>
+        <div class="saldo-row" id="row-notas-libros" style="display:none"><span>(+/−) Notas bancarias no reg.</span><span class="amount warn" id="s-notas-no-reg">—</span></div>
+        <div class="saldo-row total"><span>Saldo ajustado libros</span><span class="amount ok" id="s-libros-ajustado">—</span></div>
+        <div class="match-badge" id="match-badge">—</div>
+      </div>
+    </div>
+
+    <!-- 3. KPIs -->
+    <div class="stats-row">
+      <div class="stat"><div class="num" id="k-total">—</div><div class="lbl">Total movimientos</div></div>
+      <div class="stat s-ok"><div class="num" id="k-ok">—</div><div class="lbl">Conciliados</div><div class="sub" id="k-pct">—</div></div>
+      <div class="stat s-warn"><div class="num" id="k-diff">—</div><div class="lbl">Con diferencia</div></div>
+      <div class="stat s-danger"><div class="num" id="k-miss">—</div><div class="lbl">No encontrados</div></div>
+    </div>
+
+    <!-- 4. ANTIGÜEDAD -->
+    <div style="margin-bottom:8px">
+      <span style="font-family:var(--font-head);font-size:18px;font-style:italic;">Antigüedad de diferencias</span>
+    </div>
+    <div class="aging-grid" style="margin-bottom:24px">
+      <div class="aging-card age-ok">
+        <div class="range">1 – 30 días</div>
+        <div class="count" id="age-30-count">0</div>
+        <div class="amount" id="age-30-amt">S/ 0.00</div>
+        <div class="aging-bar"><div class="aging-bar-fill" id="age-30-bar" style="width:0%"></div></div>
+      </div>
+      <div class="aging-card age-warn">
+        <div class="range">31 – 60 días</div>
+        <div class="count" id="age-60-count">0</div>
+        <div class="amount" id="age-60-amt">S/ 0.00</div>
+        <div class="aging-bar"><div class="aging-bar-fill" id="age-60-bar" style="width:0%"></div></div>
+      </div>
+      <div class="aging-card age-danger">
+        <div class="range">Más de 60 días</div>
+        <div class="count" id="age-90-count">0</div>
+        <div class="amount" id="age-90-amt">S/ 0.00</div>
+        <div class="aging-bar"><div class="aging-bar-fill" id="age-90-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- 5. DIFERENCIAS con IA -->
+    <div id="section-diff" style="display:none;margin-bottom:20px">
+      <div class="section-block">
+        <div class="section-head">
+          <h3>Diferencias de monto</h3>
+          <span class="meta" id="meta-diff">—</span>
+        </div>
+        <div id="rows-diff"></div>
+      </div>
+    </div>
+
+    <!-- 6. NO ENCONTRADOS con IA -->
+    <div id="section-miss" style="display:none;margin-bottom:20px">
+      <div class="section-block">
+        <div class="section-head">
+          <h3>Partidas no encontradas</h3>
+          <span class="meta" id="meta-miss">—</span>
+        </div>
+        <div id="rows-miss"></div>
+      </div>
+    </div>
+
+    <!-- 7. PARTIDAS EN TRÁNSITO -->
+    <div id="section-transito" style="display:none;margin-bottom:20px">
+      <div class="section-block">
+        <div class="section-head">
+          <h3>Partidas en tránsito</h3>
+          <span class="meta" id="meta-transito">—</span>
+        </div>
+        <table class="pro">
+          <thead><tr><th>Fecha</th><th>Descripción</th><th>Doc</th><th style="text-align:right">Monto S/</th><th>Tipo</th><th>Días</th></tr></thead>
+          <tbody id="tbody-transito"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 8. CONCILIADOS -->
+    <div id="section-ok" style="display:none;margin-bottom:20px">
+      <div class="section-block">
+        <div class="section-head">
+          <h3>Movimientos conciliados</h3>
+          <span class="meta" id="meta-ok">—</span>
+        </div>
+        <table class="pro">
+          <thead><tr><th>Fecha</th><th>Descripción</th><th>Doc</th><th style="text-align:right">Banco S/</th><th style="text-align:right">Sistema S/</th><th>Estado</th></tr></thead>
+          <tbody id="tbody-ok"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 9. FIRMA -->
+    <div class="firma-section">
+      <div style="font-family:var(--font-head);font-size:18px;font-style:italic;margin-bottom:4px">Conformidad y firma</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">La presente conciliación bancaria ha sido preparada y revisada conforme a los registros contables del periodo indicado.</div>
+      <div class="firma-grid">
+        <div class="firma-block">
+          <div style="margin-bottom:8px">
+            <div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono);margin-bottom:4px">NOMBRE DEL CONTADOR</div>
+            <input class="firma-input" id="firma-nombre" type="text" placeholder="Escribe el nombre aquí">
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono);margin-bottom:4px">N° COLEGIATURA CPC</div>
+            <input class="firma-input" id="firma-cpc" type="text" placeholder="CPC N°">
+          </div>
+          <div class="firma-line">
+            <div class="firma-role">Contador Público Colegiado</div>
+          </div>
+        </div>
+        <div class="firma-block">
+          <div style="margin-bottom:8px">
+            <div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono);margin-bottom:4px">REVISADO POR</div>
+            <input class="firma-input" id="firma-revisor" type="text" placeholder="Gerente / Jefe de Contabilidad">
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono);margin-bottom:4px">CARGO</div>
+            <input class="firma-input" id="firma-cargo" type="text" placeholder="Cargo">
+          </div>
+          <div class="firma-line">
+            <div class="firma-role">Visto Bueno</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCIONES -->
+    <div class="actions-row">
+      <button class="btn-action primary-act" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+      <button class="btn-action" onclick="exportCSV()">↓ Exportar CSV</button>
+      <button class="btn-action" onclick="exportExcel()">↓ Exportar Excel</button>
+    </div>
+
+  </div><!-- /results -->
+</main>
+</div>
+
+<script>
+let bancoData = null, contableData = null;
+let globalDiffs = [], globalMissing = [], globalMatched = [];
+
+document.getElementById('file-banco').addEventListener('change', e => readFile(e.target.files[0],'banco'));
+document.getElementById('file-contable').addEventListener('change', e => readFile(e.target.files[0],'contable'));
+
+function readFile(file, src) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'binary', cellDates:true});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+      const norm = normalizeRows(rows, src);
+      if (src==='banco') { bancoData=norm; setLoaded('banco',file.name); }
+      else { contableData=norm; setLoaded('contable',file.name); }
+      checkReady();
+    } catch(e) { alert('Error: '+e.message); }
+  };
+  r.readAsBinaryString(file);
+}
+
+function setLoaded(src, name) {
+  document.getElementById(`zone-${src}`).classList.add('loaded');
+  document.getElementById(`fname-${src}`).textContent = name;
+  document.getElementById(`fname-${src}`).style.display = 'block';
+}
+
+function normalizeRows(rows, src) {
+  if (!rows.length) return [];
+  const find = (...c) => Object.keys(rows[0]).find(k => c.some(x => k.toLowerCase().includes(x)));
+  const fC=find('fecha','date','fec'), dC=find('descripcion','glosa','concepto','detalle','desc','ref');
+  const nC=find('documento','doc','numero','num','voucher','nro'), mC=find('monto','importe','amount','valor','total','debe','haber','cargo','abono');
+  return rows.filter(r=>r[mC]!=='').map((r,i)=>({
+    id:i, fecha:fC?String(r[fC]).slice(0,10):'',
+    descripcion:dC?String(r[dC]).slice(0,70):`Mov. ${i+1}`,
+    doc:nC?String(r[nC]).trim():'',
+    monto:parseFloat(String(r[mC]).replace(/[^0-9.\-]/g,''))||0,
+    fuente:src
+  }));
+}
+
+function checkReady() {
+  document.getElementById('btn-run').disabled = !(bancoData && contableData);
+}
+
+function loadDemo() {
+  bancoData = [
+    {id:0,fecha:'2025-03-03',descripcion:'TRANSF CLIENTE ROCA SAC',doc:'TRF-001',monto:15200.00},
+    {id:1,fecha:'2025-03-05',descripcion:'PAGO PROVEEDOR LIMA DIST',doc:'CHQ-0042',monto:-4800.00},
+    {id:2,fecha:'2025-03-08',descripcion:'DEPOSITO EFECTIVO CAJA',doc:'DEP-0091',monto:3500.00},
+    {id:3,fecha:'2025-03-10',descripcion:'CARGO COMISION MANTENIMIENTO',doc:'COM-MAR',monto:-45.00},
+    {id:4,fecha:'2025-03-12',descripcion:'TRANSF CLIENTE NORTE PERU',doc:'TRF-002',monto:8750.00},
+    {id:5,fecha:'2025-03-15',descripcion:'PAGO SUNAT IGV FEBRERO',doc:'PDT-621',monto:-6200.00},
+    {id:6,fecha:'2025-03-18',descripcion:'TRANSF CLIENTE ANDINA SA',doc:'TRF-003',monto:12400.00},
+    {id:7,fecha:'2025-03-20',descripcion:'PAGO PLANILLA MARZO',doc:'NOM-MAR',monto:-18500.00},
+    {id:8,fecha:'2025-02-25',descripcion:'CHEQUE 0091 PENDIENTE COBRO',doc:'CHQ-0091',monto:-3200.00},
+  ];
+  contableData = [
+    {id:0,fecha:'2025-03-03',descripcion:'Cobranza Roca SAC Fact 0042',doc:'TRF-001',monto:15200.00},
+    {id:1,fecha:'2025-03-05',descripcion:'Pago Lima Distribuidores',doc:'CHQ-0042',monto:-4750.00},
+    {id:2,fecha:'2025-03-08',descripcion:'Ingreso caja chica',doc:'DEP-0091',monto:3500.00},
+    {id:3,fecha:'2025-03-12',descripcion:'Cobranza Norte Peru SA',doc:'TRF-002',monto:8750.00},
+    {id:4,fecha:'2025-03-15',descripcion:'PDT 621 IGV Febrero 2025',doc:'PDT-621',monto:-6200.00},
+    {id:5,fecha:'2025-03-18',descripcion:'Cobranza Andina SA Fact 0089',doc:'TRF-003',monto:12400.00},
+    {id:6,fecha:'2025-03-20',descripcion:'Planilla mensual personal',doc:'NOM-MAR',monto:-18500.00},
+    {id:7,fecha:'2025-03-22',descripcion:'Provision honorarios auditor',doc:'HNR-001',monto:-2800.00},
+    {id:8,fecha:'2025-02-25',descripcion:'Cheque 0091 emitido pendiente',doc:'CHQ-0091',monto:-3200.00},
+  ];
+  document.getElementById('f-empresa').value = 'Importaciones Lima SAC';
+  document.getElementById('f-ruc').value = '20512345678';
+  document.getElementById('f-periodo').value = '2025-03';
+  document.getElementById('f-saldo-banco').value = '5905.00';
+  document.getElementById('f-saldo-libros').value = '2755.00';
+  document.getElementById('f-contador').value = 'María Quispe Flores';
+  setLoaded('banco','extracto_bcp_marzo_2025.xlsx');
+  setLoaded('contable','concar_exportacion_marzo.xlsx');
+  checkReady();
+}
+
+function fmt(n, sym='S/') {
+  return (n<0?'-':'')+sym+' '+Math.abs(n).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function daysDiff(fecha) {
+  const d = new Date(fecha+'T00:00:00');
+  const now = new Date();
+  return Math.floor((now - d) / 86400000);
+}
+
+function runAll() {
+  const matched=[], diffs=[], missing=[];
+  const usedC = new Set();
+
+  for (const b of bancoData) {
+    let found = b.doc ? contableData.find(c=>!usedC.has(c.id)&&c.doc===b.doc) : null;
+    if (!found) found = contableData.find(c=>!usedC.has(c.id)&&Math.abs(c.monto-b.monto)<0.01&&c.fecha===b.fecha);
+    if (found) {
+      usedC.add(found.id);
+      Math.abs(b.monto-found.monto)<0.01 ? matched.push({...b,montoC:found.monto}) : diffs.push({...b,montoC:found.monto,delta:b.monto-found.monto});
+    } else { missing.push({...b,fuenteLabel:'Solo en banco'}); }
+  }
+  for (const c of contableData) {
+    if (!usedC.has(c.id)) missing.push({...c,fuenteLabel:'Solo en sistema'});
+  }
+
+  globalDiffs=diffs; globalMissing=missing; globalMatched=matched;
+
+  // --- Encabezado ---
+  const emp=document.getElementById('f-empresa').value||'Empresa sin nombre';
+  const ruc=document.getElementById('f-ruc').value||'—';
+  const periodo=document.getElementById('f-periodo').value||'—';
+  const banco=document.getElementById('f-banco').value;
+  const cuenta=document.getElementById('f-cuenta').value||'—';
+  const moneda=document.getElementById('f-moneda').value;
+  const sym = moneda.includes('US$') ? 'US$' : 'S/';
+
+  document.getElementById('r-empresa').textContent=emp;
+  document.getElementById('r-ruc').textContent='RUC: '+ruc;
+  document.getElementById('r-banco').textContent=banco;
+  document.getElementById('r-cuenta').textContent=cuenta;
+  document.getElementById('r-moneda').textContent=moneda;
+  document.getElementById('r-periodo-titulo').textContent='Periodo: '+periodo;
+  document.getElementById('r-fecha-elab').textContent=new Date().toLocaleDateString('es-PE',{year:'numeric',month:'long',day:'numeric'});
+
+  // --- Saldo conciliado ---
+  const sBanco=parseFloat(document.getElementById('f-saldo-banco').value)||0;
+  const sLibros=parseFloat(document.getElementById('f-saldo-libros').value)||0;
+  const chequesTrans = missing.filter(r=>r.fuenteLabel==='Solo en sistema'&&r.monto<0).reduce((a,r)=>a+r.monto,0);
+  const depTrans = missing.filter(r=>r.fuenteLabel==='Solo en banco'&&r.monto>0).reduce((a,r)=>a+r.monto,0);
+  const cargosNoReg = missing.filter(r=>r.fuenteLabel==='Solo en banco'&&r.monto<0).reduce((a,r)=>a+r.monto,0);
+  const errLibros = diffs.reduce((a,r)=>a+(r.delta||0),0);
+
+  const sBancoAdj = sBanco - Math.abs(chequesTrans) + depTrans + cargosNoReg;
+  const sLibrosAdj = sLibros + errLibros;
+
+  document.getElementById('s-banco-inicial').textContent=fmt(sBanco,sym);
+  document.getElementById('s-libros-inicial').textContent=fmt(sLibros,sym);
+  document.getElementById('s-banco-ajustado').textContent=fmt(sBancoAdj,sym);
+  document.getElementById('s-libros-ajustado').textContent=fmt(sLibrosAdj,sym);
+
+  if (Math.abs(chequesTrans)>0) { document.getElementById('row-cheques-banco').style.display='flex'; document.getElementById('s-cheques-transito').textContent=fmt(chequesTrans,sym); }
+  if (depTrans>0) { document.getElementById('row-transito-banco').style.display='flex'; document.getElementById('s-depositos-transito').textContent=fmt(depTrans,sym); }
+  if (Math.abs(cargosNoReg)>0) { document.getElementById('row-cargos-banco').style.display='flex'; document.getElementById('s-cargos-no-reg').textContent=fmt(cargosNoReg,sym); }
+  if (Math.abs(errLibros)>0) { document.getElementById('row-errores-libros').style.display='flex'; document.getElementById('s-errores-libros').textContent=fmt(errLibros,sym); }
+
+  const conciliado = Math.abs(sBancoAdj - sLibrosAdj) < 1;
+  const mb = document.getElementById('match-badge');
+  mb.className = 'match-badge '+(conciliado?'ok':'warn');
+  mb.textContent = conciliado ? '✓ Saldos conciliados correctamente' : '⚠ Diferencia residual: '+fmt(sBancoAdj-sLibrosAdj,sym);
+
+  // --- KPIs ---
+  const total=matched.length+diffs.length+missing.length;
+  document.getElementById('k-total').textContent=total;
+  document.getElementById('k-ok').textContent=matched.length;
+  document.getElementById('k-pct').textContent=Math.round(matched.length/total*100)+'% del total';
+  document.getElementById('k-diff').textContent=diffs.length;
+  document.getElementById('k-miss').textContent=missing.length;
+
+  // --- Antigüedad ---
+  const allProblemas=[...diffs,...missing];
+  const a30=allProblemas.filter(r=>{const d=daysDiff(r.fecha);return d<=30;});
+  const a60=allProblemas.filter(r=>{const d=daysDiff(r.fecha);return d>30&&d<=60;});
+  const a90=allProblemas.filter(r=>{const d=daysDiff(r.fecha);return d>60;});
+  const maxCount=Math.max(a30.length,a60.length,a90.length,1);
+  const sumAmt=arr=>arr.reduce((s,r)=>s+Math.abs(r.monto),0);
+
+  [['30',a30],['60',a60],['90',a90]].forEach(([k,arr])=>{
+    document.getElementById(`age-${k}-count`).textContent=arr.length;
+    document.getElementById(`age-${k}-amt`).textContent=fmt(sumAmt(arr),sym);
+    document.getElementById(`age-${k}-bar`).style.width=Math.round(arr.length/maxCount*100)+'%';
+  });
+
+  // --- Diferencias ---
+  if (diffs.length) {
+    document.getElementById('section-diff').style.display='block';
+    document.getElementById('meta-diff').textContent=diffs.length+' items · Total diferencia: '+fmt(diffs.reduce((s,r)=>s+Math.abs(r.delta),0),sym);
+    document.getElementById('rows-diff').innerHTML = diffs.map((r,i)=>buildRow(r,i,'diff',sym)).join('');
+  }
+
+  // --- No encontrados ---
+  if (missing.length) {
+    document.getElementById('section-miss').style.display='block';
+    document.getElementById('meta-miss').textContent=missing.length+' items · Total: '+fmt(missing.reduce((s,r)=>s+Math.abs(r.monto),0),sym);
+    document.getElementById('rows-miss').innerHTML = missing.map((r,i)=>buildRow(r,i,'miss',sym)).join('');
+  }
+
+  // --- Partidas en tránsito (cheques y depósitos pendientes) ---
+  const transito=[...chequesTrans<0?missing.filter(r=>r.fuenteLabel==='Solo en sistema'&&r.monto<0):[],
+                  ...depTrans>0?missing.filter(r=>r.fuenteLabel==='Solo en banco'&&r.monto>0):[]];
+  if (transito.length) {
+    document.getElementById('section-transito').style.display='block';
+    document.getElementById('meta-transito').textContent=transito.length+' partidas pendientes de registro';
+    document.getElementById('tbody-transito').innerHTML=transito.map(r=>{
+      const dias=daysDiff(r.fecha);
+      const tipo=r.monto<0?'<span class="pill warn">Cheque en tránsito</span>':'<span class="pill info">Depósito en tránsito</span>';
+      const diasClass=dias>30?'danger':dias>15?'warn':'ok';
+      return `<tr><td class="mono">${r.fecha}</td><td>${r.descripcion}</td><td class="mono">${r.doc||'—'}</td><td class="right ${r.monto<0?'danger':'ok'}">${fmt(r.monto,sym)}</td><td>${tipo}</td><td class="${diasClass}">${dias}d</td></tr>`;
+    }).join('');
+  }
+
+  // --- Conciliados ---
+  if (matched.length) {
+    document.getElementById('section-ok').style.display='block';
+    document.getElementById('meta-ok').textContent=matched.length+' movimientos · '+Math.round(matched.length/total*100)+'% del total';
+    document.getElementById('tbody-ok').innerHTML=matched.map(r=>`
+      <tr>
+        <td class="mono">${r.fecha}</td><td>${r.descripcion}</td><td class="mono">${r.doc||'—'}</td>
+        <td class="right ${r.monto<0?'danger':'ok'}">${fmt(r.monto,sym)}</td>
+        <td class="right ${r.montoC<0?'danger':'ok'}">${fmt(r.montoC,sym)}</td>
+        <td><span class="pill ok">Conciliado</span></td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('results').style.display='block';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function buildRow(r, i, type, sym) {
+  const delta = r.delta!==undefined ? r.delta : null;
+  const montoC = r.montoC!==undefined ? `<div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono)">Sistema: ${fmt(r.montoC,sym)}</div>` : '';
+  const deltaHtml = delta!==null
+    ? `<span class="pill ${delta<0?'danger':'warn'}">${delta>0?'+':''}${fmt(delta,sym)}</span>`
+    : `<span class="pill danger">${r.fuenteLabel}</span>`;
+  const dias = daysDiff(r.fecha);
+  const diasClass = dias>60?'danger':dias>30?'warn':'ok';
+
+  return `
+  <div style="border-top:1px solid var(--border)">
+    <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="flex:1">
+        <div style="font-weight:500;margin-bottom:2px">${r.descripcion}</div>
+        <div style="font-size:11px;color:var(--ink3);font-family:var(--font-mono)">${r.fecha} · Doc: ${r.doc||'sin nro'} · <span class="${diasClass}">${dias} días</span></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--font-mono);font-size:13px;font-weight:500;color:${r.monto<0?'var(--danger)':'var(--ok)'}">${fmt(r.monto,sym)}</div>
+        ${montoC}
+        <div style="margin-top:4px">${deltaHtml}</div>
+      </div>
+    </div>
+    <div class="ai-row">
+      <button class="ai-trigger" id="trig-${type}-${i}" onclick="analyzeAI(event,'${type}',${i},'${sym}')">
+        <div class="spinner"></div>
+        <span>✦ Analizar con IA — ver causa probable y asiento sugerido</span>
+      </button>
+      <div class="ai-result" id="airesult-${type}-${i}"></div>
+    </div>
+  </div>`;
+}
+
+async function analyzeAI(e, type, i, sym) {
+  e.stopPropagation();
+  const apiKey=document.getElementById('api-key').value.trim();
+  if (!apiKey) { alert('Ingresa tu API Key de Claude en el panel izquierdo.\n\nObtén la tuya gratis en: console.anthropic.com'); return; }
+
+  const trig=document.getElementById(`trig-${type}-${i}`);
+  const res=document.getElementById(`airesult-${type}-${i}`);
+  trig.classList.add('loading');
+  trig.querySelector('span').textContent='Analizando con Claude...';
+
+  const item = type==='diff' ? globalDiffs[i] : globalMissing[i];
+  const prompt = type==='diff'
+    ? `Eres un contador experto en Perú con conocimiento del PCGE y normas SUNAT. Analiza esta diferencia en una conciliación bancaria:\n- Descripción: ${item.descripcion}\n- Documento: ${item.doc||'sin número'}\n- Fecha: ${item.fecha}\n- Monto banco: ${sym} ${item.monto}\n- Monto sistema: ${sym} ${item.montoC}\n- Diferencia: ${sym} ${item.delta}\n\nResponde SOLO en JSON sin backticks:\n{"causa":"explicación breve (máx 2 oraciones)","accion":"qué debe hacer el contador (máx 2 oraciones)","asiento":[{"cuenta":"XX Nombre","tipo":"DB","monto":0.00,"glosa":"texto"},{"cuenta":"XX Nombre","tipo":"CR","monto":0.00,"glosa":"texto"}]}`
+    : `Eres un contador experto en Perú con conocimiento del PCGE y normas SUNAT. Analiza esta partida que aparece solo en una fuente de la conciliación:\n- Descripción: ${item.descripcion}\n- Documento: ${item.doc||'sin número'}\n- Fecha: ${item.fecha}\n- Monto: ${sym} ${item.monto}\n- Fuente: ${item.fuenteLabel}\n\nResponde SOLO en JSON sin backticks:\n{"causa":"explicación breve (máx 2 oraciones)","accion":"qué debe hacer el contador (máx 2 oraciones)","asiento":[{"cuenta":"XX Nombre","tipo":"DB","monto":0.00,"glosa":"texto"},{"cuenta":"XX Nombre","tipo":"CR","monto":0.00,"glosa":"texto"}]}`;
+
+  try {
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await resp.json();
+    const text=data.content?.map(b=>b.text||'').join('')||'';
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    const asientoRows=parsed.asiento.map(a=>`
+      <tr><td>${a.cuenta}</td><td class="${a.tipo==='DB'?'db':'cr'}">${a.tipo}</td>
+      <td style="text-align:right">${a.tipo==='DB'?fmt(Math.abs(a.monto),sym):''}</td>
+      <td style="text-align:right">${a.tipo==='CR'?fmt(Math.abs(a.monto),sym):''}</td>
+      <td>${a.glosa}</td></tr>`).join('');
+
+    res.innerHTML=`
+      <div style="margin-top:10px">
+        <div class="ai-section-title">Probable causa</div>
+        <div class="ai-text">${parsed.causa}</div>
+        <div class="ai-section-title">Acción recomendada</div>
+        <div class="ai-text">${parsed.accion}</div>
+        <div class="ai-section-title">Asiento contable sugerido</div>
+        <table class="asiento-table">
+          <thead><tr><th>Cuenta</th><th>Tipo</th><th style="text-align:right">Débito ${sym}</th><th style="text-align:right">Crédito ${sym}</th><th>Glosa</th></tr></thead>
+          <tbody>${asientoRows}</tbody>
+        </table>
+        <div id="apr-${type}-${i}">
+          <button class="approve-btn" onclick="approveItem('${type}',${i})">✓ Aprobar asiento</button>
+        </div>
+      </div>`;
+
+    trig.style.display='none';
+    res.classList.add('visible');
+  } catch(err) {
+    trig.classList.remove('loading');
+    trig.querySelector('span').textContent='✦ Analizar con IA — ver causa probable y asiento sugerido';
+    alert('Error con Claude API: '+err.message);
+  }
+}
+
+function approveItem(type,i) {
+  document.getElementById(`apr-${type}-${i}`).innerHTML='<div class="approved-tag">✓ Asiento aprobado y registrado</div>';
+}
+
+function exportCSV() {
+  const sym=document.getElementById('f-moneda').value.includes('US$')?'US$':'S/';
+  const rows=[['Tipo','Fecha','Descripcion','Doc','Monto Banco','Monto Sistema','Diferencia','Estado','Dias']];
+  globalMatched.forEach(r=>rows.push(['Conciliado',r.fecha,r.descripcion,r.doc,r.monto,r.montoC,0,'OK',daysDiff(r.fecha)]));
+  globalDiffs.forEach(r=>rows.push(['Diferencia',r.fecha,r.descripcion,r.doc,r.monto,r.montoC,r.delta,'Diferencia',daysDiff(r.fecha)]));
+  globalMissing.forEach(r=>rows.push(['No encontrado',r.fecha,r.descripcion,r.doc,r.monto,'—','—',r.fuenteLabel,daysDiff(r.fecha)]));
+  const csv=rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='conciliacion_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+function exportExcel() {
+  const sym=document.getElementById('f-moneda').value.includes('US$')?'US$':'S/';
+  const rows=[['Tipo','Fecha','Descripcion','Documento','Monto Banco','Monto Sistema','Diferencia','Estado','Dias antiguedad']];
+  globalMatched.forEach(r=>rows.push(['Conciliado',r.fecha,r.descripcion,r.doc,r.monto,r.montoC,0,'Conciliado',daysDiff(r.fecha)]));
+  globalDiffs.forEach(r=>rows.push(['Diferencia',r.fecha,r.descripcion,r.doc,r.monto,r.montoC,r.delta,'Diferencia',daysDiff(r.fecha)]));
+  globalMissing.forEach(r=>rows.push(['No encontrado',r.fecha,r.descripcion,r.doc,r.monto,'—','—',r.fuenteLabel,daysDiff(r.fecha)]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Conciliacion');
+  XLSX.writeFile(wb,'conciliacion_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+</script>
+</body>
+</html>
